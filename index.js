@@ -1,7 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const fetch = require('node-fetch');
+const fetch = require('node-fetch'); // Ensure this line is present
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -13,7 +13,7 @@ const productId = 'kq_phCDPWlqUL6esdzmX2Q=='; // Your actual product ID
 
 app.post('/verify', async (req, res) => {
   const { licenseKey } = req.body;
-  
+
   if (usedLicenseKeys.has(licenseKey)) {
     return res.json({ success: false, message: 'License key has already been used.' });
   }
