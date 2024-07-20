@@ -13,7 +13,7 @@ app.use(cors());
 
 const productId = 'kq_phCDPWlqUL6esdzmX2Q=='; // Your actual product ID
 const usedLicenseKeysPath = path.join(__dirname, 'usedLicenseKeys.json');
-const licenseExpiryDays = 30; // License validity in days
+const licenseExpiryDays = 1; // License validity in days
 
 // Function to load used license keys from the JSON file
 function loadUsedLicenseKeys() {
