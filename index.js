@@ -1,21 +1,53 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const fetch = require('node-fetch'); // Ensure this line is present
+const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 app.use(cors());
 
-const usedLicenseKeys = new Set();
 const productId = 'kq_phCDPWlqUL6esdzmX2Q=='; // Your actual product ID
+const usedLicenseKeysPath = path.join(__dirname, 'usedLicenseKeys.json');
+const licenseExpiryDays = 30; // License validity in days
+
+// Function to load used license keys from the JSON file
+function loadUsedLicenseKeys() {
+  if (!fs.existsSync(usedLicenseKeysPath)) {
+    fs.writeFileSync(usedLicenseKeysPath, JSON.stringify([]));
+  }
+  const data = fs.readFileSync(usedLicenseKeysPath);
+  return JSON.parse(data);
+}
+
+// Function to save used license keys to the JSON file
+function saveUsedLicenseKeys(usedLicenseKeys) {
+  fs.writeFileSync(usedLicenseKeysPath, JSON.stringify(usedLicenseKeys, null, 2));
+}
+
+// Load used license keys when the server starts
+let usedLicenseKeys = loadUsedLicenseKeys();
 
 app.post('/verify', async (req, res) => {
   const { licenseKey } = req.body;
+  const currentDateTime = new Date();
 
-  if (usedLicenseKeys.has(licenseKey)) {
-    return res.json({ success: false, message: 'License key has already been used.' });
+  // Check if the license key has been used before
+  const existingKey = usedLicenseKeys.find(entry => entry.licenseKey === licenseKey);
+
+  if (existingKey) {
+    const activationDate = new Date(existingKey.activationDate);
+    const expiryDate = new Date(activationDate);
+    expiryDate.setDate(expiryDate.getDate() + licenseExpiryDays);
+
+    // Check if the key is still within the valid period
+    if (currentDateTime < expiryDate) {
+      return res.json({ success: false, message: 'License key has already been used and is still valid.' });
+    }
   }
 
   try {
@@ -33,7 +65,12 @@ app.post('/verify', async (req, res) => {
 
     const data = await response.json();
     if (data.success && !data.refunded && !data.disputed) {
-      usedLicenseKeys.add(licenseKey);
+      // Remove the old entry if it exists
+      usedLicenseKeys = usedLicenseKeys.filter(entry => entry.licenseKey !== licenseKey);
+      // Add the new entry with the current date and time
+      usedLicenseKeys.push({ licenseKey, activationDate: currentDateTime.toISOString() });
+      // Save the updated list to the file
+      saveUsedLicenseKeys(usedLicenseKeys);
       res.json({ success: true });
     } else {
       res.json({ success: false, message: 'Invalid or refunded/disputed license key.' });
