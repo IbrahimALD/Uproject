@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const fetch = require('node-fetch');
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 const app = express();
@@ -18,21 +18,34 @@ const licenseExpiryHours = 0; // License validity in hours
 const licenseExpiryMinutes = 5; // License validity in minutes
 
 // Function to load used license keys from the JSON file
-function loadUsedLicenseKeys() {
-  if (!fs.existsSync(usedLicenseKeysPath)) {
-    fs.writeFileSync(usedLicenseKeysPath, JSON.stringify([]));
+async function loadUsedLicenseKeys() {
+  try {
+    await fs.access(usedLicenseKeysPath);
+  } catch (error) {
+    await fs.writeFile(usedLicenseKeysPath, JSON.stringify([]));
   }
-  const data = fs.readFileSync(usedLicenseKeysPath);
+  const data = await fs.readFile(usedLicenseKeysPath, 'utf8');
   return JSON.parse(data);
 }
 
 // Function to save used license keys to the JSON file
-function saveUsedLicenseKeys(usedLicenseKeys) {
-  fs.writeFileSync(usedLicenseKeysPath, JSON.stringify(usedLicenseKeys, null, 2));
+async function saveUsedLicenseKeys(usedLicenseKeys) {
+  try {
+    await fs.writeFile(usedLicenseKeysPath, JSON.stringify(usedLicenseKeys, null, 2));
+    console.log('Used license keys successfully saved.');
+  } catch (error) {
+    console.error('Failed to save used license keys:', error);
+  }
 }
 
 // Load used license keys when the server starts
-let usedLicenseKeys = loadUsedLicenseKeys();
+let usedLicenseKeys = [];
+
+async function initializeUsedLicenseKeys() {
+  usedLicenseKeys = await loadUsedLicenseKeys();
+}
+
+initializeUsedLicenseKeys();
 
 app.post('/verify', async (req, res) => {
   const { licenseKey } = req.body;
@@ -84,7 +97,7 @@ app.post('/verify', async (req, res) => {
       // Add the new entry with the current date and time
       usedLicenseKeys.push({ licenseKey, activationDate: currentDateTime.toISOString() });
       // Save the updated list to the file
-      saveUsedLicenseKeys(usedLicenseKeys);
+      await saveUsedLicenseKeys(usedLicenseKeys);
       console.log('Saved used license keys:', usedLicenseKeys);
       res.json({ success: true });
     } else {
