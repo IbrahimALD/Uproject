@@ -13,7 +13,9 @@ app.use(cors());
 
 const productId = 'kq_phCDPWlqUL6esdzmX2Q=='; // Your actual product ID
 const usedLicenseKeysPath = path.join(__dirname, 'usedLicenseKeys.json');
-const licenseExpiryDays = 1; // License validity in days
+const licenseExpiryDays = 0; // License validity in days
+const licenseExpiryHours = 0; // License validity in hours
+const licenseExpiryMinutes = 5; // License validity in minutes
 
 // Function to load used license keys from the JSON file
 function loadUsedLicenseKeys() {
@@ -43,6 +45,8 @@ app.post('/verify', async (req, res) => {
     const activationDate = new Date(existingKey.activationDate);
     const expiryDate = new Date(activationDate);
     expiryDate.setDate(expiryDate.getDate() + licenseExpiryDays);
+    expiryDate.setHours(expiryDate.getHours() + licenseExpiryHours);
+    expiryDate.setMinutes(expiryDate.getMinutes() + licenseExpiryMinutes);
 
     // Check if the key is still within the valid period
     if (currentDateTime < expiryDate) {
