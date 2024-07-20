@@ -38,18 +38,24 @@ app.post('/verify', async (req, res) => {
   const { licenseKey } = req.body;
   const currentDateTime = new Date();
 
+  console.log('Current Date Time:', currentDateTime);
+
   // Check if the license key has been used before
   const existingKey = usedLicenseKeys.find(entry => entry.licenseKey === licenseKey);
 
   if (existingKey) {
     const activationDate = new Date(existingKey.activationDate);
+    console.log('Activation Date:', activationDate);
     const expiryDate = new Date(activationDate);
     expiryDate.setDate(expiryDate.getDate() + licenseExpiryDays);
     expiryDate.setHours(expiryDate.getHours() + licenseExpiryHours);
     expiryDate.setMinutes(expiryDate.getMinutes() + licenseExpiryMinutes);
 
+    console.log('Expiry Date:', expiryDate);
+
     // Check if the key is still within the valid period
     if (currentDateTime < expiryDate) {
+      console.log('License key has already been used and is still valid.');
       return res.json({ success: false, message: 'License key has already been used and is still valid.' });
     }
   }
@@ -68,6 +74,8 @@ app.post('/verify', async (req, res) => {
     });
 
     const data = await response.json();
+    console.log('Gumroad API Response:', data);
+
     if (data.success && !data.refunded && !data.disputed) {
       // Remove the old entry if it exists
       usedLicenseKeys = usedLicenseKeys.filter(entry => entry.licenseKey !== licenseKey);
@@ -75,6 +83,7 @@ app.post('/verify', async (req, res) => {
       usedLicenseKeys.push({ licenseKey, activationDate: currentDateTime.toISOString() });
       // Save the updated list to the file
       saveUsedLicenseKeys(usedLicenseKeys);
+      console.log('Saved used license keys:', usedLicenseKeys);
       res.json({ success: true });
     } else {
       res.json({ success: false, message: 'Invalid or refunded/disputed license key.' });
