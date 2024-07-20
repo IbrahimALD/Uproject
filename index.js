@@ -1,49 +1,49 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const cors = require('cors'); // Import the cors middleware
+const cors = require('cors');
+const fetch = require('node-fetch');
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
-app.use(cors()); // Use the cors middleware
+app.use(cors());
 
-let usedLicenseKeys = {};
+const usedLicenseKeys = new Set();
+const productId = 'kq_phCDPWlqUL6esdzmX2Q=='; // Your actual product ID
 
-app.post('/verify', (req, res) => {
-  const { licenseKey, productId } = req.body;
-
-  if (licenseKey.startsWith('VALID-')) {
-    if (usedLicenseKeys[licenseKey]) {
-      res.json({ success: false, message: 'License key already used' });
-    } else {
-      usedLicenseKeys[licenseKey] = { productId, activationDate: new Date() };
-      res.json({ success: true });
-    }
-  } else {
-    res.json({ success: false, message: 'Invalid license key' });
-  }
-});
-
-app.post('/checkExpiration', (req, res) => {
+app.post('/verify', async (req, res) => {
   const { licenseKey } = req.body;
-  const entry = usedLicenseKeys[licenseKey];
+  
+  if (usedLicenseKeys.has(licenseKey)) {
+    return res.json({ success: false, message: 'License key has already been used.' });
+  }
 
-  if (entry) {
-    const activationDate = new Date(entry.activationDate);
-    const currentDate = new Date();
-    const diffTime = Math.abs(currentDate - activationDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  try {
+    const response = await fetch('https://api.gumroad.com/v2/licenses/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        product_id: productId,
+        license_key: licenseKey,
+        increment_uses_count: false // Avoid incrementing usage count on every check
+      })
+    });
 
-    if (diffDays > 30) {
-      res.json({ expired: true });
+    const data = await response.json();
+    if (data.success && !data.refunded && !data.disputed) {
+      usedLicenseKeys.add(licenseKey);
+      res.json({ success: true });
     } else {
-      res.json({ expired: false });
+      res.json({ success: false, message: 'Invalid or refunded/disputed license key.' });
     }
-  } else {
-    res.json({ expired: true });
+  } catch (error) {
+    console.error('License verification failed:', error);
+    res.json({ success: false, message: 'License verification failed.' });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`License server running on port ${port}`);
 });
