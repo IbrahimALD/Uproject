@@ -45,18 +45,20 @@ app.post('/verify', async (req, res) => {
 
   if (existingKey) {
     const activationDate = new Date(existingKey.activationDate);
-    console.log('Activation Date:', activationDate);
     const expiryDate = new Date(activationDate);
     expiryDate.setDate(expiryDate.getDate() + licenseExpiryDays);
     expiryDate.setHours(expiryDate.getHours() + licenseExpiryHours);
     expiryDate.setMinutes(expiryDate.getMinutes() + licenseExpiryMinutes);
 
+    console.log('Activation Date:', activationDate);
     console.log('Expiry Date:', expiryDate);
 
     // Check if the key is still within the valid period
     if (currentDateTime < expiryDate) {
-      console.log('License key has already been used and is still valid.');
+      console.log('License key is still valid.');
       return res.json({ success: false, message: 'License key has already been used and is still valid.' });
+    } else {
+      console.log('License key has expired.');
     }
   }
 
